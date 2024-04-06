@@ -1,6 +1,5 @@
 # Finance: A Stock Portfolio
 
-Finance is a web app developed as the project for Week 8 of Harvard's CS50 course.
 
 
 
