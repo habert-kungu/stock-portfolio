@@ -1,10 +1,11 @@
-import os
 import datetime
+import os
+
+from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session
 from flask_session import Session
-from cs50 import SQL
-from werkzeug.security import check_password_hash, generate_password_hash
 from helpers import apology, login_required, lookup, usd
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # Configure application
 app = Flask(__name__)
@@ -20,6 +21,7 @@ db = SQL("sqlite:///finance.db")
 # Custom filter
 app.jinja_env.filters["usd"] = usd
 
+
 # Ensure responses aren't cached
 @app.after_request
 def after_request(response):
@@ -28,17 +30,22 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
+
 # Index route
 @app.route("/")
 @login_required
 def index():
     user_id = session["user_id"]
 
-    transactions_db = db.execute("SELECT symbol, SUM(shares) AS shares, price FROM transactions WHERE user_id = ? GROUP BY symbol HAVING SUM(shares) > 0 ORDER BY price DESC", user_id)
+    transactions_db = db.execute(
+        "SELECT symbol, SUM(shares) AS shares, price FROM transactions WHERE user_id = ? GROUP BY symbol HAVING SUM(shares) > 0 ORDER BY price DESC",
+        user_id,
+    )
     cash_db = db.execute("SELECT cash FROM users WHERE id = ?", user_id)
     cash = cash_db[0]["cash"]
 
-    return render_template("index.html", database = transactions_db, cash  = cash)
+    return render_template("index.html", database=transactions_db, cash=cash)
+
 
 # Buy route
 @app.route("/buy", methods=["GET", "POST"])
@@ -69,18 +76,29 @@ def buy():
         db.execute("UPDATE users SET cash = ? WHERE id = ?", updated_cash, user_id)
 
         date = datetime.datetime.now()
-        db.execute("INSERT INTO transactions (user_id, symbol, shares, price, date) VALUES (?, ?, ?, ?, ?)", user_id, stock["symbol"], shares, stock["price"], date)
+        db.execute(
+            "INSERT INTO transactions (user_id, symbol, shares, price, date) VALUES (?, ?, ?, ?, ?)",
+            user_id,
+            stock["symbol"],
+            shares,
+            stock["price"],
+            date,
+        )
 
         flash("Bought!")
         return redirect("/")
+
 
 # History route
 @app.route("/history")
 @login_required
 def history():
-    user_id  = session["user_id"]
-    transactions_db = db.execute("SELECT * FROM transactions WHERE  user_id = :id", id=user_id )
-    return render_template("history.html", transactions = transactions_db)
+    user_id = session["user_id"]
+    transactions_db = db.execute(
+        "SELECT * FROM transactions WHERE  user_id = :id", id=user_id
+    )
+    return render_template("history.html", transactions=transactions_db)
+
 
 # Login route
 @app.route("/login", methods=["GET", "POST"])
@@ -99,11 +117,13 @@ def login():
 
     return render_template("login.html")
 
+
 # Logout route
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
+
 
 # Register route
 @app.route("/register", methods=["GET", "POST"])
@@ -122,7 +142,9 @@ def register():
 
         hash = generate_password_hash(password)
         try:
-            user_id = db.execute("INSERT INTO users (username, hash) VALUES (?, ?)", username, hash)
+            user_id = db.execute(
+                "INSERT INTO users (username, hash) VALUES (?, ?)", username, hash
+            )
         except:
             return apology("Username already exists", 403)
 
@@ -130,6 +152,7 @@ def register():
         return redirect("/")
 
     return render_template("register.html")
+
 
 # Quote route
 @app.route("/quote", methods=["GET", "POST"])
@@ -146,7 +169,13 @@ def quote():
         if stock is None:
             return apology("Symbol does not exist", 400)
 
-        return render_template("quoted.html", name=stock["name"], price=stock["price"], symbol=stock["symbol"])
+        return render_template(
+            "quoted.html",
+            name=stock["name"],
+            price=stock["price"],
+            symbol=stock["symbol"],
+        )
+
 
 # Sell route (TODO)
 @app.route("/sell", methods=["GET", "POST"])
@@ -154,7 +183,10 @@ def quote():
 def sell():
     if request.method == "GET":
         user_id = session["user_id"]
-        symbols_user = db.execute("SELECT symbol FROM transactions WHERE user_id = :id GROUP BY symbol HAVING SUM(shares) > 0", id=user_id)
+        symbols_user = db.execute(
+            "SELECT symbol FROM transactions WHERE user_id = :id GROUP BY symbol HAVING SUM(shares) > 0",
+            id=user_id,
+        )
         symbols = [row["symbol"] for row in symbols_user]
         return render_template("sell.html", symbols=symbols)
     else:
@@ -173,7 +205,11 @@ def sell():
         user_cash_db = db.execute("SELECT cash FROM users WHERE id = ?", user_id)
         user_cash = user_cash_db[0]["cash"]
 
-        user_shares = db.execute('SELECT shares FROM transactions WHERE user_id= :id AND symbol = :symbol GROUP BY symbol ', id=user_id, symbol=symbol)
+        user_shares = db.execute(
+            "SELECT shares FROM transactions WHERE user_id= :id AND symbol = :symbol GROUP BY symbol ",
+            id=user_id,
+            symbol=symbol,
+        )
         user_real_shares = user_shares[0]["shares"]
 
         if shares > user_real_shares:
@@ -183,7 +219,14 @@ def sell():
         db.execute("UPDATE users SET cash = ? WHERE id = ?", updated_cash, user_id)
 
         date = datetime.datetime.now()
-        db.execute("INSERT INTO transactions (user_id, symbol, shares, price, date) VALUES (?, ?, ?, ?, ?)", user_id, stock["symbol"], (-1)*shares, stock["price"], date)
+        db.execute(
+            "INSERT INTO transactions (user_id, symbol, shares, price, date) VALUES (?, ?, ?, ?, ?)",
+            user_id,
+            stock["symbol"],
+            (-1) * shares,
+            stock["price"],
+            date,
+        )
 
         flash("Sold")
         return redirect("/")
